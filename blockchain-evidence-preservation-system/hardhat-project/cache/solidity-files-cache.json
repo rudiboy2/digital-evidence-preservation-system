@@ -1,0 +1,114 @@
+{
+  "_format": "hh-sol-cache-2",
+  "files": {
+    "C:\\Users\\user\\Downloads\\blockchain-evidence-preservation-system\\blockchain-evidence-preservation-system\\hardhat-project\\contracts\\access_control.sol": {
+      "lastModificationDate": 1778653914902,
+      "contentHash": "5f516470b73ffaad192c9ee181a07a34",
+      "sourceName": "contracts/access_control.sol",
+      "solcConfig": {
+        "version": "0.8.19",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        "^0.8.19"
+      ],
+      "artifacts": [
+        "AccessControlled"
+      ]
+    },
+    "C:\\Users\\user\\Downloads\\blockchain-evidence-preservation-system\\blockchain-evidence-preservation-system\\hardhat-project\\contracts\\evidence_registry.sol": {
+      "lastModificationDate": 1778653914901,
+      "contentHash": "6aa868d6c37cb2041660625f4a5900e2",
+      "sourceName": "contracts/evidence_registry.sol",
+      "solcConfig": {
+        "version": "0.8.19",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [
+        "./access_control.sol"
+      ],
+      "versionPragmas": [
+        "^0.8.19"
+      ],
+      "artifacts": [
+        "EvidenceRegistry"
+      ]
+    },
+    "C:\\Users\\user\\Downloads\\blockchain-evidence-preservation-system\\blockchain-evidence-preservation-system\\hardhat-project\\contracts\\custody_contract.sol": {
+      "lastModificationDate": 1778653914899,
+      "contentHash": "09ffd9adc4f00b5e5b2c2285a6d16bd7",
+      "sourceName": "contracts/custody_contract.sol",
+      "solcConfig": {
+        "version": "0.8.19",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [
+        "./access_control.sol"
+      ],
+      "versionPragmas": [
+        "^0.8.19"
+      ],
+      "artifacts": [
+        "CustodyContract"
+      ]
+    }
+  }
+}

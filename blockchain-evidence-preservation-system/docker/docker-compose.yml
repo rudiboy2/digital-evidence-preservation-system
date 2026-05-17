@@ -1,0 +1,125 @@
+
+
+# ============================================================
+# Blockchain Evidence Preservation System - Docker Compose
+# ============================================================
+
+services:
+  # ----------------------------------------------------------
+  # PostgreSQL Database
+  # ----------------------------------------------------------
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: beps_user
+      POSTGRES_PASSWORD: beps_pass
+      POSTGRES_DB: beps_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U beps_user -d beps_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ----------------------------------------------------------
+  # FastAPI Backend
+  # ----------------------------------------------------------
+  backend:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      hardhat:
+        condition: service_started
+    env_file: ../.env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://beps_user:beps_pass@db:5432/beps_db
+      BLOCKCHAIN_RPC_URL: http://hardhat:8545
+      EVIDENCE_STORAGE_PATH: /app/evidence_storage
+    volumes:
+     - ../backend:/app/backend
+      - evidence_storage:/app/evidence_storage
+    ports:
+      - "8000:8000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ----------------------------------------------------------
+  # Vue.js Frontend (served via Nginx)
+  # ----------------------------------------------------------
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "3000:80"
+
+  # ----------------------------------------------------------
+  # Hardhat Local Blockchain (Ethereum)
+  # ----------------------------------------------------------
+  hardhat:
+    image: node:22-alpine
+    working_dir: /app
+    command: >
+      sh -c "npm install --save-dev hardhat @nomicfoundation/hardhat-toolbox &&
+             npx hardhat node --hostname 0.0.0.0 --port 8545"
+    ports:
+      - "8545:8545"
+    volumes:
+      - hardhat_data:/app
+
+  # ----------------------------------------------------------
+  # IPFS Node (optional)
+  # ----------------------------------------------------------
+  ipfs:
+    image: ipfs/kubo:v0.28.0
+    restart: unless-stopped
+    environment:
+      - IPFS_PROFILE=server
+    volumes:
+      - ipfs_data:/data/ipfs
+    ports:
+      - "4001:4001"  # Swarm
+      - "5001:5001"  # API
+      - "8080:8080"  # Gateway
+    healthcheck:
+      test: ["CMD", "ipfs", "id"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ----------------------------------------------------------
+  # Alembic Migrations (run once at startup)
+  # ----------------------------------------------------------
+  migrations:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file: ../.env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://beps_user:beps_pass@db:5432/beps_db
+    command: ["alembic", "upgrade", "head"]
+    volumes:
+      - ../migrations:/app/migrations
+
+volumes:
+  postgres_data:
+  evidence_storage:
+  hardhat_data:
+  ipfs_data:

@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <!-- Hexagon background -->
+  <polygon
+    points="32,4 56,18 56,46 32,60 8,46 8,18"
+    fill="#0a0c0f"
+    stroke="#f59e0b"
+    stroke-width="2"
+  />
+  <!-- Inner hex -->
+  <polygon
+    points="32,14 48,23 48,41 32,50 16,41 16,23"
+    fill="none"
+    stroke="#f59e0b"
+    stroke-width="1"
+    opacity="0.4"
+  />
+  <!-- Chain link symbol -->
+  <circle cx="25" cy="28" r="5" fill="none" stroke="#f59e0b" stroke-width="2"/>
+  <circle cx="39" cy="36" r="5" fill="none" stroke="#f59e0b" stroke-width="2"/>
+  <line x1="29" y1="31" x2="35" y2="33" stroke="#f59e0b" stroke-width="2" stroke-linecap="round"/>
+</svg>
