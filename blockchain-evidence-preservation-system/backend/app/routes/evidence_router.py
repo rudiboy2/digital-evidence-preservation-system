@@ -75,6 +75,24 @@ async def upload_evidence(
     request: Request,
     case_id: UUID,
     description: str = "",
+    # Officer collection metadata — Tanzania forensic compliance
+    evidence_source_type: str = "",
+    device_type: str = "",
+    device_make: str = "",
+    device_model: str = "",
+    device_serial_number: str = "",
+    device_imei: str = "",
+    collection_method: str = "",
+    collection_location: str = "",
+    collection_gps_lat: float = None,
+    collection_gps_lng: float = None,
+    collection_date: str = "",
+    witness_name: str = "",
+    witness_badge_number: str = "",
+    physical_seal_number: str = "",
+    evidence_bag_number: str = "",
+    exhibit_tag_number: str = "",
+    witness_statement_ref: str = "",
     file: UploadFile = File(...),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -141,6 +159,16 @@ async def upload_evidence(
             detail="Identical evidence already exists in this case.",
         )
 
+    # Parse collection date if provided
+    from datetime import datetime as dt
+    collection_date_parsed = None
+    if collection_date:
+        try:
+            collection_date_parsed = dt.fromisoformat(collection_date)
+        except:
+            pass
+    collection_date = collection_date_parsed
+
     # Store file
     storage_path = await local_storage.save(file_bytes, file.filename, str(case_id))
 
@@ -159,20 +187,38 @@ async def upload_evidence(
         pass  # Blockchain unavailable; evidence still saved locally
 
     ev_status = EvidenceStatus.VERIFIED.value if tx_hash else EvidenceStatus.PENDING.value
+    inferred_type = Evidence.infer_type(file.content_type or "")
     evidence = Evidence(
         case_id=case_id,
         uploaded_by=current_user.id,
         file_name=file.filename,
         file_size=len(file_bytes),
         mime_type=file.content_type or "application/octet-stream",
-        evidence_type=Evidence.infer_type(file.content_type or "").value
-            if hasattr(Evidence, "infer_type") else EvidenceType.OTHER.value,
+        evidence_type=inferred_type.value if hasattr(inferred_type, 'value') else str(inferred_type),
         sha256_hash=sha256,
         storage_path=storage_path,
         blockchain_tx_hash=tx_hash,
         blockchain_block_number=block_number,
         description=description,
         status=ev_status,
+        # Officer collection metadata
+        evidence_source_type=evidence_source_type,
+        device_type=device_type,
+        device_make=device_make,
+        device_model=device_model,
+        device_serial_number=device_serial_number,
+        device_imei=device_imei,
+        collection_method=collection_method,
+        collection_location=collection_location,
+        collection_gps_lat=collection_gps_lat,
+        collection_gps_lng=collection_gps_lng,
+        collection_date=collection_date,
+        witness_name=witness_name,
+        witness_badge_number=witness_badge_number,
+        physical_seal_number=physical_seal_number,
+        evidence_bag_number=evidence_bag_number,
+        exhibit_tag_number=exhibit_tag_number,
+        witness_statement_ref=witness_statement_ref,
     )
     db.add(evidence)
     await db.flush()

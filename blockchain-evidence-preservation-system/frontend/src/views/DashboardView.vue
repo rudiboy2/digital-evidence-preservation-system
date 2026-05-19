@@ -101,13 +101,15 @@
         <div class="modal card fade-up">
           <h2 class="modal__title">Create New Case</h2>
           <form class="modal__form" @submit.prevent="createCase">
+
+            <div class="modal__section">📋 Case Information</div>
             <div class="form-group">
               <label class="form-label">Case Title *</label>
-              <input v-model="newCase.title" class="form-input" required placeholder="e.g. Digital Fraud Investigation Q3 2024" />
+              <input v-model="newCase.title" class="form-input" required placeholder="e.g. Cybercrime Investigation — Dar es Salaam 2026" />
             </div>
             <div class="form-group">
               <label class="form-label">Description</label>
-              <textarea v-model="newCase.description" class="form-input" rows="3" placeholder="Brief overview of the investigation…" />
+              <textarea v-model="newCase.description" class="form-input" rows="2" placeholder="Brief overview of the investigation…" />
             </div>
             <div class="modal__row">
               <div class="form-group">
@@ -121,12 +123,68 @@
               </div>
               <div class="form-group">
                 <label class="form-label">Jurisdiction</label>
-                <input v-model="newCase.jurisdiction" class="form-input" placeholder="Federal / State / Local" />
+                <input v-model="newCase.jurisdiction" class="form-input" placeholder="e.g. Polisi Tanzania, Dodoma" />
               </div>
             </div>
+            <div class="form-group">
+              <label class="form-label">Incident Date</label>
+              <input v-model="newCase.incident_date" type="datetime-local" class="form-input" />
+            </div>
+
+            <div class="modal__section">⚖️ Legal Authority (Criminal Procedure Act Cap 20)</div>
+            <div class="modal__row">
+              <div class="form-group">
+                <label class="form-label">Warrant Number *</label>
+                <input v-model="newCase.warrant_number" class="form-input" placeholder="e.g. HCT-W-2026-001" />
+              </div>
+              <div class="form-group">
+                <label class="form-label">OB Number *</label>
+                <input v-model="newCase.ob_number" class="form-input" placeholder="e.g. OB-TPF-DSM-2026-4421" />
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Issuing Court</label>
+              <input v-model="newCase.warrant_issuing_court" class="form-input" placeholder="e.g. Resident Magistrate Court, Dodoma" />
+            </div>
+            <div class="modal__row">
+              <div class="form-group">
+                <label class="form-label">Warrant Issue Date</label>
+                <input v-model="newCase.warrant_issue_date" type="date" class="form-input" />
+              </div>
+              <div class="form-group">
+                <label class="form-label">Warrant Expiry Date</label>
+                <input v-model="newCase.warrant_expiry_date" type="date" class="form-input" />
+              </div>
+            </div>
+
+            <div class="modal__section">🏛 DPP & Court Tracking</div>
+            <div class="modal__row">
+              <div class="form-group">
+                <label class="form-label">DPP Reference Number</label>
+                <input v-model="newCase.dpp_reference_number" class="form-input" placeholder="e.g. DPP/CRM/2026/001" />
+              </div>
+              <div class="form-group">
+                <label class="form-label">Referring Agency</label>
+                <select v-model="newCase.referring_agency" class="form-input">
+                  <option value="">— Select Agency —</option>
+                  <option value="TPF">TPF (Tanzania Police Force)</option>
+                  <option value="PCCB">PCCB (Anti-Corruption Bureau)</option>
+                  <option value="TCRA">TCRA</option>
+                  <option value="FIU">FIU (Financial Intelligence Unit)</option>
+                  <option value="INTERPOL">INTERPOL NCB Tanzania</option>
+                  <option value="TRA">TRA (Revenue Authority)</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">External Reference Number</label>
+              <input v-model="newCase.external_reference" class="form-input" placeholder="External agency reference number" />
+            </div>
+
             <div class="modal__actions">
               <button type="button" class="btn btn--ghost" @click="showNewCase = false">Cancel</button>
               <button type="submit" class="btn btn--primary" :disabled="isCreating">
+                <span v-if="isCreating" class="modal-spinner" />
                 {{ isCreating ? 'Creating…' : 'Create Case' }}
               </button>
             </div>
@@ -164,63 +222,104 @@ const stats = computed(() => [
   { label: 'Chain Status',   value: 'Online', icon: '⛓' },
 ])
 
-const newCase = reactive({ title: '', description: '', priority: 'medium', jurisdiction: '' })
+const newCase = reactive({
+  title: '', description: '', priority: 'medium', jurisdiction: '',
+  incident_date: '',
+  warrant_number: '', ob_number: '', warrant_issuing_court: '',
+  warrant_issue_date: '', warrant_expiry_date: '',
+  dpp_reference_number: '', referring_agency: '', external_reference: '',
+})
 
 onMounted(fetchCases)
 watch([page, statusFilter], fetchCases)
 
+// ── Shared fetch helper with auto token refresh ───────────────────────────
+async function authFetch(url, options = {}) {
+  const token = localStorage.getItem('access_token')
+  const headers = { 'Content-Type': 'application/json', ...options.headers }
+  if (token) headers['Authorization'] = `Bearer ${token}`
+
+  let response = await fetch(url, { ...options, headers })
+
+  // Token expired — try refresh once
+  if (response.status === 401) {
+    const refreshToken = localStorage.getItem('refresh_token')
+    if (refreshToken) {
+      try {
+        const refreshResp = await fetch('http://localhost:8000/api/v1/auth/refresh', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ refresh_token: refreshToken }),
+        })
+        if (refreshResp.ok) {
+          const tokens = await refreshResp.json()
+          localStorage.setItem('access_token',  tokens.access_token)
+          localStorage.setItem('refresh_token', tokens.refresh_token)
+          // Retry original request with new token
+          headers['Authorization'] = `Bearer ${tokens.access_token}`
+          response = await fetch(url, { ...options, headers })
+        }
+      } catch {}
+    }
+    // If still 401 after refresh attempt, redirect to login
+    if (response.status === 401) {
+      ['access_token','refresh_token','user_role','user_name','user_email']
+        .forEach(k => localStorage.removeItem(k))
+      window.location.href = '/'
+      return null
+    }
+  }
+  return response
+}
+
 async function fetchCases() {
   isLoading.value = true
   try {
-    const token = localStorage.getItem('access_token')
     const params = new URLSearchParams({ page: page.value, page_size: 15 })
     if (statusFilter.value) params.append('status', statusFilter.value)
 
-    const response = await fetch(`http://localhost:8000/api/v1/cases/?${params}`, {
-      headers: { 'Authorization': `Bearer ${token}` }
-    })
+    const response = await authFetch(`http://localhost:8000/api/v1/cases/?${params}`)
+    if (!response) return
 
     if (!response.ok) throw new Error(`HTTP ${response.status}`)
-
     const data = await response.json()
     cases.value      = data.items || []
     totalPages.value  = data.pages || 1
     totalCases.value  = data.total || 0
-
   } catch (err) {
     console.error('Failed to fetch cases:', err.message)
   } finally {
     isLoading.value = false
   }
 }
+
 async function createCase() {
   isCreating.value = true
   try {
-    const token = localStorage.getItem('access_token')
-    const response = await fetch('http://localhost:8000/api/v1/cases/', {
+    const response = await authFetch('http://localhost:8000/api/v1/cases/', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
-      body: JSON.stringify({
-        title:        newCase.title,
-        description:  newCase.description,
-        priority:     newCase.priority,
-        jurisdiction: newCase.jurisdiction,
-      })
+      body: JSON.stringify({ ...newCase }),
     })
 
+    if (!response) return  // redirected to login
+
     if (!response.ok) {
-      const err = await response.json()
-      let msg = `Error: ${response.status}`
+      const err = await response.json().catch(() => ({}))
+      let msg = `Error ${response.status}`
       if (typeof err.detail === 'string') msg = err.detail
-      else if (Array.isArray(err.detail)) msg = err.detail.map(e => e.msg).join(', ')
+      else if (Array.isArray(err.detail)) msg = err.detail.map(e => e.msg || JSON.stringify(e)).join(', ')
       throw new Error(msg)
     }
 
+    // Case created successfully
     showNewCase.value = false
-    Object.assign(newCase, { title: '', description: '', priority: 'medium', jurisdiction: '' })
+    Object.assign(newCase, {
+      title: '', description: '', priority: 'medium', jurisdiction: '',
+      incident_date: '', warrant_number: '', ob_number: '', warrant_issuing_court: '',
+      warrant_issue_date: '', warrant_expiry_date: '',
+      dpp_reference_number: '', referring_agency: '', external_reference: '',
+    })
+    // Refresh list — silently ignore errors here
     await fetchCases()
 
   } catch (err) {
@@ -410,6 +509,27 @@ function priorityClass(p) {
   margin-top: 8px;
   padding-top: 16px;
   border-top: 1px solid var(--border);
+}
+
+.modal__section {
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--amber);
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+  margin-top: 4px;
+}
+
+.modal-spinner {
+  width: 13px; height: 13px;
+  border: 2px solid rgba(0,0,0,0.3);
+  border-top-color: var(--bg-primary);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  flex-shrink: 0;
+  display: inline-block;
 }
 
 @keyframes spin { to { transform: rotate(360deg); } }

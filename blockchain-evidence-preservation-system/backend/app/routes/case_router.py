@@ -429,3 +429,210 @@ async def get_case_audit_log(
             for log in logs
         ],
     }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# ADMISSIBILITY CHECKLIST — Auditor & Admin
+# ─────────────────────────────────────────────────────────────────────────────
+@router.get(
+    "/{case_id}/admissibility-check",
+    summary="Generate court admissibility checklist (Auditor / Admin)",
+)
+async def admissibility_check(
+    case_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Generates a compliance checklist based on Tanzania court requirements.
+    Checks all mandatory fields for digital evidence admissibility.
+    """
+    await verify_case_access(case_id, current_user, db, require_write=False)
+
+    result = await db.execute(
+        select(Case)
+        .where(Case.id == case_id)
+        .options(
+            selectinload(Case.evidence),
+            selectinload(Case.analysis_reports),
+            selectinload(Case.assigned_officers),
+            selectinload(Case.assigned_analysts),
+        )
+    )
+    case = result.scalar_one_or_none()
+    if not case:
+        raise HTTPException(status_code=404, detail="Case not found.")
+
+    checks = []
+    missing = []
+
+    def chk(label, passed, required=True, detail=""):
+        status = "pass" if passed else ("fail" if required else "warning")
+        if not passed:
+            missing.append(label)
+        checks.append({
+            "label": label,
+            "status": status,
+            "required": required,
+            "detail": detail,
+        })
+
+    # Legal authority checks
+    chk("Warrant Number recorded",
+        bool(case.warrant_number),
+        detail=case.warrant_number or "MISSING — required by Criminal Procedure Act Cap 20")
+    chk("Warrant Issuing Court recorded",
+        bool(case.warrant_issuing_court),
+        detail=case.warrant_issuing_court or "MISSING")
+    chk("OB Number recorded",
+        bool(case.ob_number),
+        detail=case.ob_number or "MISSING — required by TPF Evidence Manual 2019")
+    chk("DPP Reference Number",
+        bool(case.dpp_reference_number), required=False,
+        detail=case.dpp_reference_number or "Not yet forwarded to DPP")
+
+    # Evidence checks
+    evidence_list = case.evidence or []
+    chk("At least one evidence item uploaded",
+        len(evidence_list) > 0,
+        detail=f"{len(evidence_list)} evidence items")
+
+    all_have_seal = all(e.physical_seal_number for e in evidence_list) if evidence_list else False
+    chk("All evidence has physical seal numbers",
+        all_have_seal or not evidence_list, required=False,
+        detail="Required for physical device evidence")
+
+    all_have_bag = all(e.evidence_bag_number for e in evidence_list) if evidence_list else False
+    chk("All evidence has bag/exhibit numbers",
+        all_have_bag or not evidence_list, required=False,
+        detail="Required by TPF Evidence Manual 2019")
+
+    all_have_witness = all(e.witness_name for e in evidence_list) if evidence_list else False
+    chk("All evidence has witness records",
+        all_have_witness or not evidence_list,
+        detail="Witness required at point of collection")
+
+    all_have_location = all(e.collection_location for e in evidence_list) if evidence_list else False
+    chk("All evidence has collection location",
+        all_have_location or not evidence_list,
+        detail="Collection location required for court")
+
+    all_verified = all(
+        e.status in ("verified",) for e in evidence_list
+    ) if evidence_list else False
+    chk("All evidence hash-verified against blockchain",
+        all_verified or not evidence_list,
+        detail="SHA-256 verification required by Evidence Act CAP 6 Section 34A")
+
+    # Analyst report checks
+    reports = case.analysis_reports or []
+    chk("At least one forensic analysis report submitted",
+        len(reports) > 0,
+        detail=f"{len(reports)} reports")
+
+    if reports:
+        latest = reports[-1]
+        chk("Analyst certification number in report",
+            bool(latest.analyst_certification_number),
+            detail=latest.analyst_certification_number or "MISSING — TCRA certification required")
+        chk("Forensic tool name and version recorded",
+            bool(latest.forensic_tool_name and latest.forensic_tool_version),
+            detail=f"{latest.forensic_tool_name} {latest.forensic_tool_version}" if latest.forensic_tool_name else "MISSING — required by TDFL-STD-2023")
+        chk("Lab reference number recorded",
+            bool(latest.lab_reference_number), required=False,
+            detail=latest.lab_reference_number or "Recommended for TDFL submissions")
+        chk("Examination dates recorded",
+            bool(latest.examination_start_date and latest.examination_end_date),
+            detail="Required by TDFL-STD-2023")
+        chk("Independence statement signed",
+            bool(latest.independence_statement),
+            detail="Required for court testimony")
+        chk("Work copy hash recorded",
+            bool(latest.work_copy_hash),
+            detail="Original must never be examined directly")
+        chk("Analyst declaration included",
+            bool(latest.analyst_declaration),
+            detail="Required for court-admissible reports")
+
+    # Team assignment checks
+    chk("Officers assigned to case",
+        len(case.assigned_officers) > 0,
+        detail=f"{len(case.assigned_officers)} officer(s) assigned")
+    chk("Analysts assigned to case",
+        len(case.assigned_analysts) > 0,
+        detail=f"{len(case.assigned_analysts)} analyst(s) assigned")
+
+    total = len(checks)
+    passed = sum(1 for c in checks if c["status"] == "pass")
+    score = int((passed / total) * 100) if total > 0 else 0
+    is_court_ready = score >= 80 and not any(
+        c["status"] == "fail" and c["required"] for c in checks
+    )
+
+    return {
+        "case_id": str(case_id),
+        "case_number": case.case_number,
+        "case_title": case.title,
+        "checks": checks,
+        "compliance_score": score,
+        "passed": passed,
+        "total": total,
+        "is_court_ready": is_court_ready,
+        "missing_required_items": [c["label"] for c in checks if c["status"] == "fail" and c["required"]],
+        "warnings": [c["label"] for c in checks if c["status"] == "warning"],
+        "generated_at": datetime.utcnow().isoformat(),
+        "generated_by": str(current_user.id),
+        "generated_by_role": current_user.role.name if current_user.role else "",
+    }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SUBMIT EVIDENCE TO COURT — Investigator / Admin
+# ─────────────────────────────────────────────────────────────────────────────
+@router.post(
+    "/{case_id}/submit-to-court",
+    summary="Mark evidence as submitted to court (Investigator / Admin)",
+)
+async def submit_evidence_to_court(
+    case_id: UUID,
+    request: Request,
+    court_case_number: str = "",
+    court_name: str = "",
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role("investigator", "admin")),
+):
+    """
+    Marks the case evidence as formally submitted to court.
+    Creates an immutable blockchain-logged audit entry.
+    """
+    await verify_case_access(case_id, current_user, db, require_write=True)
+
+    result = await db.execute(select(Case).where(Case.id == case_id))
+    case = result.scalar_one_or_none()
+    if not case:
+        raise HTTPException(status_code=404, detail="Case not found.")
+
+    case.evidence_submitted_to_court = True
+    case.evidence_submitted_date = datetime.utcnow()
+    case.court_status = "before_court"
+    if court_case_number:
+        case.court_case_number = court_case_number
+    if court_name:
+        case.court_name = court_name
+
+    await log_action(
+        db, action="evidence_submitted_to_court",
+        performed_by=current_user.id,
+        performed_by_role=current_user.role.name,
+        case_id=case_id,
+        notes=f"Evidence formally submitted to {court_name or case.court_name}. Court case: {court_case_number or case.court_case_number}",
+        ip_address=request.client.host if request.client else None,
+    )
+    await db.commit()
+
+    return {
+        "message": "Evidence submission to court recorded.",
+        "case_id": str(case_id),
+        "court_case_number": case.court_case_number,
+        "submitted_at": case.evidence_submitted_date.isoformat(),
+    }

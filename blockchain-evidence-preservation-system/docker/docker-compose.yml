@@ -12,9 +12,11 @@ services:
     image: postgres:16-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_USER: beps_user
-      POSTGRES_PASSWORD: beps_pass
-      POSTGRES_DB: beps_db
+     DATABASE_URL: postgresql+asyncpg://beps_user:beps_pass@db:5432/beps_db
+     BLOCKCHAIN_RPC_URL: http://host.docker.internal:8545
+     EVIDENCE_STORAGE_PATH: /app/evidence_storage
+     JWT_ACCESS_TOKEN_EXPIRE_MINUTES: "480"
+     JWT_REFRESH_TOKEN_EXPIRE_DAYS: "30"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
@@ -33,27 +35,22 @@ services:
       context: ..
       dockerfile: docker/Dockerfile
     restart: unless-stopped
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       db:
         condition: service_healthy
-      hardhat:
-        condition: service_started
     env_file: ../.env
     environment:
       DATABASE_URL: postgresql+asyncpg://beps_user:beps_pass@db:5432/beps_db
-      BLOCKCHAIN_RPC_URL: http://hardhat:8545
+      BLOCKCHAIN_RPC_URL: http://host.docker.internal:8545
       EVIDENCE_STORAGE_PATH: /app/evidence_storage
+      JWT_ACCESS_TOKEN_EXPIRE_MINUTES: "480"
+      JWT_REFRESH_TOKEN_EXPIRE_DAYS: "30"
     volumes:
-     - ../backend:/app/backend
       - evidence_storage:/app/evidence_storage
     ports:
       - "8000:8000"
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-
   # ----------------------------------------------------------
   # Vue.js Frontend (served via Nginx)
   # ----------------------------------------------------------

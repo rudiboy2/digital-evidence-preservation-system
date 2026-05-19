@@ -23,7 +23,6 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     logger.info("Starting Blockchain Evidence Preservation System...")
     async with engine.begin() as conn:
-        
         await conn.run_sync(Base.metadata.create_all)
     logger.info("Database tables initialized.")
     yield
