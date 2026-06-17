@@ -4,27 +4,58 @@
     <main class="main-content">
       <RouterView />
     </main>
+
+    <!-- ── Floating Theme Toggle ── -->
+    <button
+      class="theme-fab"
+      :title="isDark ? 'Switch to light mode' : 'Switch to dark mode'"
+      @click="toggleTheme"
+      aria-label="Toggle colour theme"
+    >
+      <span v-if="isDark">☀</span>
+      <span v-else>☽</span>
+    </button>
   </div>
 </template>
 
 <script setup>
-import { computed } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, computed, onMounted } from 'vue'
 import Navbar from './components/Navbar.vue'
 
 const isAuthenticated = computed(() => !!localStorage.getItem('access_token'))
+
+// ── Theme ──────────────────────────────────────────────────────────────────
+const isDark = ref(true)
+
+function applyTheme(dark) {
+  document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light')
+  localStorage.setItem('theme', dark ? 'dark' : 'light')
+  isDark.value = dark
+}
+
+function toggleTheme() {
+  applyTheme(!isDark.value)
+}
+
+onMounted(() => {
+  const saved = localStorage.getItem('theme')
+  applyTheme(saved !== 'light') // default to dark
+})
 </script>
 
 <style>
 /* ============================================================
    BEPS Global Styles — Industrial Forensic Aesthetic
    Typefaces: "Courier Prime" (mono data) + "Barlow Condensed" (display)
-   Palette: Near-black background, amber accents, cool greys
+   Palette (dark):  Near-black background, amber accents, cool greys
+   Palette (light): Oceanic blue — soft blue-whites, deep teal accents
    ============================================================ */
 
 @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@300;400;600;700&family=Courier+Prime:wght@400;700&family=IBM+Plex+Mono:wght@300;400;500&display=swap');
 
-:root {
+/* ── Dark theme (default) ─────────────────────────────────── */
+:root,
+[data-theme="dark"] {
   --bg-primary:    #0a0c0f;
   --bg-secondary:  #111318;
   --bg-card:       #161a21;
@@ -45,14 +76,55 @@ const isAuthenticated = computed(() => !!localStorage.getItem('access_token'))
   --border:        rgba(255,255,255,0.07);
   --border-amber:  rgba(245, 158, 11, 0.3);
 
-  --font-display:  'Barlow Condensed', sans-serif;
-  --font-mono:     'IBM Plex Mono', 'Courier Prime', monospace;
-
-  --radius:        4px;
-  --radius-lg:     8px;
-
   --shadow-card:   0 4px 24px rgba(0,0,0,0.5);
   --shadow-glow:   0 0 20px rgba(245, 158, 11, 0.15);
+
+  /* FAB */
+  --fab-bg:        #1c2029;
+  --fab-border:    rgba(255,255,255,0.1);
+  --fab-color:     #f59e0b;
+  --fab-hover-bg:  #252c38;
+}
+
+/* ── Light / Oceanic Blue theme ───────────────────────────── */
+[data-theme="light"] {
+  --bg-primary:    #e8f4f8;
+  --bg-secondary:  #d0e8f0;
+  --bg-card:       #f0f8fc;
+  --bg-elevated:   #ffffff;
+
+  /* Keep the accent teal-leaning to feel "oceanic" */
+  --amber:         #0e7490;   /* deep teal replaces amber as primary accent  */
+  --amber-dim:     #0a5c73;
+  --amber-glow:    rgba(14, 116, 144, 0.12);
+
+  --green-ok:      #0d9488;
+  --red-alert:     #dc2626;
+  --blue-info:     #2563eb;
+
+  --text-primary:  #0f2d3d;
+  --text-secondary:#2e5f74;
+  --text-muted:    #6b9aaa;
+
+  --border:        rgba(14, 116, 144, 0.15);
+  --border-amber:  rgba(14, 116, 144, 0.35);
+
+  --shadow-card:   0 4px 16px rgba(14,116,144,0.1);
+  --shadow-glow:   0 0 20px rgba(14, 116, 144, 0.15);
+
+  /* FAB */
+  --fab-bg:        #f0f8fc;
+  --fab-border:    rgba(14, 116, 144, 0.25);
+  --fab-color:     #0e7490;
+  --fab-hover-bg:  #d0e8f0;
+}
+
+/* ── Shared / static tokens ───────────────────────────────── */
+:root {
+  --font-display:  'Barlow Condensed', sans-serif;
+  --font-mono:     'IBM Plex Mono', 'Courier Prime', monospace;
+  --radius:        4px;
+  --radius-lg:     8px;
 }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -67,8 +139,9 @@ body {
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
   min-height: 100vh;
+  transition: background-color 0.25s ease, color 0.25s ease;
 
-  /* Subtle scanline overlay */
+  /* Subtle scanline — only in dark mode */
   background-image:
     repeating-linear-gradient(
       0deg,
@@ -77,6 +150,11 @@ body {
       rgba(255,255,255,0.013) 2px,
       rgba(255,255,255,0.013) 4px
     );
+}
+
+[data-theme="light"] body,
+[data-theme="light"] #beps-app {
+  background-image: none; /* remove scanlines in light mode */
 }
 
 #beps-app {
@@ -159,10 +237,10 @@ a:hover { text-decoration: underline; }
 
 .btn--primary {
   background: var(--amber);
-  color: var(--bg-primary);
+  color: var(--bg-elevated);
   border-color: var(--amber);
 }
-.btn--primary:hover { background: #fbbf24; box-shadow: 0 0 16px rgba(245,158,11,0.4); }
+.btn--primary:hover { filter: brightness(1.1); box-shadow: var(--shadow-glow); }
 
 .btn--ghost {
   background: transparent;
@@ -243,4 +321,40 @@ a:hover { text-decoration: underline; }
 }
 
 .fade-up { animation: fadeUp 0.4s ease both; }
+
+/* ---------- Floating Theme Toggle (FAB) ---------- */
+.theme-fab {
+  position: fixed;
+  bottom: 28px;
+  right: 28px;  
+  z-index: 99999;
+
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+
+  background: var(--fab-bg);
+  border: 1px solid var(--fab-border);
+  color: var(--fab-color);
+  font-size: 1.15rem;
+  line-height: 1;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  cursor: pointer;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.25);
+  transition: background 0.2s ease, transform 0.15s ease, box-shadow 0.2s ease;
+}
+
+.theme-fab:hover {
+  background: var(--fab-hover-bg);
+  transform: scale(1.08);
+  box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+}
+
+.theme-fab:active {
+  transform: scale(0.95);
+}
 </style>

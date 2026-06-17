@@ -547,7 +547,7 @@ function formatDateFull(iso) {
 .stat--fail { font-size:0.78rem; color:var(--red-alert); }
 .score-card__missing { font-size:0.72rem; color:var(--red-alert); }
 
-.checklist { }
+
 .checklist__title { font-size:0.95rem; margin-bottom:16px; padding-bottom:12px; border-bottom:1px solid var(--border); }
 .check-item { display:flex; gap:12px; padding:10px 0; border-bottom:1px solid var(--border); }
 .check-item:last-child { border-bottom:none; }

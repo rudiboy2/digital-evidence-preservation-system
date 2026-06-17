@@ -546,7 +546,6 @@ function formatDate(iso) {
 .case-card__meta { display:flex; flex-direction:column; gap:3px; font-size:0.68rem; color:var(--text-muted); }
 
 /* Panel */
-.panel-section { }
 .panel-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; padding-bottom:12px; border-bottom:1px solid var(--border); }
 .panel-header h2 { font-size:0.95rem; }
 .panel-header__sub { font-size:0.68rem; color:var(--text-muted); margin-top:2px; }

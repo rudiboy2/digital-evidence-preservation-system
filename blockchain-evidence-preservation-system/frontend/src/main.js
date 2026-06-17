@@ -3,6 +3,12 @@ import { createPinia } from 'pinia'
 import { createRouter, createWebHistory } from 'vue-router'
 import App from './App.vue'
 
+// ── Theme bootstrap (runs before mount to avoid flash) ──────────────────────
+;(function () {
+  const saved = localStorage.getItem('theme')
+  document.documentElement.setAttribute('data-theme', saved === 'light' ? 'light' : 'dark')
+})()
+
 // Views
 import HomeView          from './views/HomeView.vue'
 import DashboardView     from './views/DashboardView.vue'
