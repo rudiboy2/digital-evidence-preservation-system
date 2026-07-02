@@ -11,8 +11,7 @@
         <div class="home__badge">Blockchain-Secured</div>
         <h1 class="home__title">Evidence<br /><span class="home__title--accent">Vault</span></h1>
         <p class="home__tagline">
-          Immutable digital evidence management for law enforcement.<br />
-          Every file hashed, every transfer logged on-chain.
+          
         </p>
       </div>
 

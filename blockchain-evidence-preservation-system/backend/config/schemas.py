@@ -54,7 +54,7 @@ class TokenRefreshRequest(BaseModel):
 
 
 # ---------------------------------------------------------------------------
-# Case — Investigator Features (Tanzania Legal Compliance)
+# Case
 # ---------------------------------------------------------------------------
 class CaseCreateRequest(BaseModel):
     title: str = Field(..., min_length=5, max_length=500)
@@ -62,19 +62,16 @@ class CaseCreateRequest(BaseModel):
     priority: str = Field(default="medium")
     jurisdiction: Optional[str] = None
     incident_date: Optional[datetime] = None
-    # Legal authority fields
     warrant_number: Optional[str] = None
     warrant_issuing_court: Optional[str] = None
     warrant_issue_date: Optional[datetime] = None
     warrant_expiry_date: Optional[datetime] = None
     ob_number: Optional[str] = None
     dpp_reference_number: Optional[str] = None
-    # Court tracking
     court_name: Optional[str] = None
     court_case_number: Optional[str] = None
     next_hearing_date: Optional[datetime] = None
     court_status: Optional[str] = None
-    # Inter-agency
     referring_agency: Optional[str] = None
     external_reference: Optional[str] = None
 
@@ -98,10 +95,9 @@ class CaseUpdateRequest(BaseModel):
     referring_agency: Optional[str] = None
     external_reference: Optional[str] = None
 
-class CaseAssignRequest(BaseModel):
-    user_id: UUID
-    role: Optional[str] = "officer"
-    notes: Optional[str] = None
+
+class CaseTransitionRequest(BaseModel):
+    notes: Optional[str] = Field(None, max_length=2000)
 
 
 class CaseResponse(BaseModel):
@@ -114,7 +110,6 @@ class CaseResponse(BaseModel):
     priority: str
     jurisdiction: Optional[str] = None
     incident_date: Optional[datetime] = None
-    # Legal fields
     warrant_number: Optional[str] = None
     warrant_issuing_court: Optional[str] = None
     warrant_issue_date: Optional[datetime] = None
@@ -135,6 +130,7 @@ class CaseResponse(BaseModel):
     closed_at: Optional[datetime] = None
     assigned_officers: List[UserResponse] = []
     assigned_analysts: List[UserResponse] = []
+    evidence_count: int = 0
 
 
 class CaseListResponse(BaseModel):
@@ -146,7 +142,7 @@ class CaseListResponse(BaseModel):
 
 
 # ---------------------------------------------------------------------------
-# Evidence — Officer Features (Tanzania Forensic Compliance)
+# Evidence
 # ---------------------------------------------------------------------------
 class EvidenceResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -163,7 +159,6 @@ class EvidenceResponse(BaseModel):
     blockchain_block_number: Optional[int] = None
     description: Optional[str] = None
     status: str
-    # Officer collection fields
     evidence_source_type: Optional[str] = None
     device_type: Optional[str] = None
     device_make: Optional[str] = None
@@ -240,7 +235,7 @@ class AuditLogListResponse(BaseModel):
 
 
 # ---------------------------------------------------------------------------
-# Analysis Report — Analyst Features (TDFL-STD-2023)
+# Analysis Report
 # ---------------------------------------------------------------------------
 class AnalysisReportCreateRequest(BaseModel):
     title: str = Field(..., min_length=5, max_length=500)
@@ -249,7 +244,6 @@ class AnalysisReportCreateRequest(BaseModel):
     methodology: Optional[str] = None
     conclusion: Optional[str] = None
     evidence_ids: Optional[List[UUID]] = None
-    # TDFL mandatory fields
     analyst_certification_number: Optional[str] = None
     forensic_tool_name: Optional[str] = None
     forensic_tool_version: Optional[str] = None
@@ -307,7 +301,7 @@ class AnalysisReportListResponse(BaseModel):
 
 
 # ---------------------------------------------------------------------------
-# Admissibility Checklist — Auditor Feature
+# Admissibility Checklist
 # ---------------------------------------------------------------------------
 class AdmissibilityChecklistResponse(BaseModel):
     case_id: str
